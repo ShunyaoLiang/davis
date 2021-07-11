@@ -35,7 +35,7 @@ The operator is automatically looked-up with FIND-SYMBOL if it exists."
   `(defrule ,symbol (and ,lower-rule (? (and (? whitespace) ,operators (? whitespace) ,symbol)))
      (:destructure (lhs (&optional _ operator _ rhs))
       (if operator
-          `(,(or (find-symbol operator) operator) ,lhs ,rhs)
+          `(,(or (find-symbol operator :davis.parse) operator) ,lhs ,rhs)
           lhs))
      ,@options))
 
@@ -47,7 +47,7 @@ The operator is automatically looked-up with FIND-SYMBOL if it exists."
   `(defrule ,symbol (and (? ,operators) (? whitespace) ,lower-rule)
      (:destructure (operator _ operand)
       (if operator
-          `(,(or (find-symbol operator) operator) ,operand)
+          `(,(or (find-symbol operator :davis.parse) operator) ,operand)
           operand))
      ,@options))
 
@@ -143,16 +143,16 @@ The operator is automatically looked-up with FIND-SYMBOL if it exists."
 
 (define-delimited-list-rule display-statement-arguments expression whitespace)
 
-(defrule return-statement (and (and "RETURN" whitespace) expression)
+(defrule return-statement (and (and "RETURN" whitespace) (? expression))
   (:destructure (_ value)
-   (list :type :return-statement :arguments value)))
+   (list :type :return-statement :arguments (list value))))
 
 (defrule let-statement (and (? (and (or "Let" "Set" "LET") whitespace))
                             assignment-operation)
   (:destructure (_ assignment)
    (list :type :let-statement :arguments assignment)))
 
-(defrule get-statement (and (and "Get" whitespace) identifier-list)
+(defrule get-statement (and (and (or "Get" "Read") whitespace) identifier-list)
   (:destructure (_ arguments)
    (list :type :get-statement :arguments arguments)))
 
@@ -228,7 +228,7 @@ The operator is automatically looked-up with FIND-SYMBOL if it exists."
    ;; NEWLINE constantly produces :newline.
    (if (eq a :newline) b a)))
 
-(defrule while-statement (and "WHILE " condition newline
+(defrule while-statement (and "WHILE " expression newline
                               indented-block
                               (and (? whitespace) "ENDWHILE"))
   (:destructure (_ condition _ statements _)
@@ -270,11 +270,7 @@ The operator is automatically looked-up with FIND-SYMBOL if it exists."
        (rplaca form 'equalp)
        form)))
 
-(define-binary-operation-rule comparison-operation term-operation (or "<=" ">=" "<>" "<" ">")
-  (:lambda (form)
-   (if (and (consp form) (string= (first form) "<>"))
-       (rplaca form '(lambda (a b) (not (equalp a b))))
-       form)))
+(define-binary-operation-rule comparison-operation term-operation (or "<=" ">=" "<>" "<" ">"))
 
 (define-binary-operation-rule term-operation factor-operation (or "+" "-"))
 
@@ -380,6 +376,8 @@ The operator is automatically looked-up with FIND-SYMBOL if it exists."
   (with-mmap (address file-descriptor size filespec)
     (declare (ignore file-descriptor))
     (foreign-string-to-lisp address :count (1- size)))) ; The 1- strips the trailing newline. 
+
+(defun <> (a b) (not (equalp a b)))
 
 ;;; Warnings
 
