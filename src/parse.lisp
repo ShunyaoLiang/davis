@@ -239,7 +239,7 @@ The operator is automatically looked-up with FIND-SYMBOL if it exists."
 
 (defrule for-statement (and "FOR "
                             assignment-operation
-                            " TO "
+                            (or " TO " " to ")
                             expression
                             (? (and " STEP " expression))
                             newline
