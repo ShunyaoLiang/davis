@@ -51,17 +51,25 @@ The operator is automatically looked-up with FIND-SYMBOL if it exists."
           operand))
      ,@options))
 
+;;; Globals
+
+(defvar *statement-position* nil
+  "A hack to obtain the position of the current statement being parsed by the STATEMENT rule.")
+
 ;;; Grammars
 
 ;; TODO: Rename this.
 (define-delimited-list-rule top-level-form-list (or procedure record) (+ newline))
 
-(defrule procedure (and (and "BEGIN" whitespace) identifier (? (and (? whitespace) parameter-list)) newline
-                        ;; This is the most elegant solution I could find, because ESRAP does not
-                        ;; perform backtracking. Every use of INDENTED-BLOCK must mark its 'ender'.
-                        ; (? (and (! "END") indented-block))
+(defrule procedure (and (and "BEGIN" whitespace)
+                        identifier
+                        (? (and (? whitespace) parameter-list))
+                        newline
                         (* indented-statement)
                         (and "END" whitespace) identifier)
+  (:around (&bounds start end)
+   (setf *statement-position* (list :start start :end end))
+   (call-transform))
   (:destructure (_ forename (&optional _ parameters) _
                    ; (&optional _ statements)
                    statements
@@ -70,7 +78,9 @@ The operator is automatically looked-up with FIND-SYMBOL if it exists."
    ;; but users should be warned of it.
    (when (not (string= forename surname))
      (warn 'inconsistent-procedure-names-warning :forename forename :surname surname))
-   (list :type :procedure :name forename :parameters parameters :statements statements)))
+   (list :type 'procedure
+         :fields (list :name forename :parameters parameters :statements statements)
+         :meta *statement-position*)))
 
 (defrule parameter-list (and (and #\( (? whitespace)) identifier-list (and (? whitespace) #\)))
   (:function second))
@@ -110,9 +120,6 @@ The operator is automatically looked-up with FIND-SYMBOL if it exists."
    ;  (warn 'indentation-warning :position :stub))
    statement))
 
-(defvar *statement-position* nil
-  "A hack to obtain the position of the current statement being parsed by the STATEMENT rule.")
-
 (defrule statement (or comment
                        display-statement
                        return-statement
@@ -132,29 +139,29 @@ The operator is automatically looked-up with FIND-SYMBOL if it exists."
    (setf *statement-position* (list :start start :end end))
    (call-transform))
   (:lambda (statement)
-   (append statement *statement-position*)))
+   (append statement '(:meta) (list *statement-position*))))
 
 (defrule display-statement (and (and "Display" whitespace) display-statement-arguments)
-  (:destructure (_ arguments)
+  (:destructure (_ fields)
    ;; There are two styles of display statement arguments. The course specifications implicitly
    ;; concatenate arguments, but some exam papers place ampersands between them.
    ;; TODO: Support explicit concatenated display statements.
-   (list :type :display-statement :arguments arguments)))
+   (list :type :display-statement :fields fields)))
 
 (define-delimited-list-rule display-statement-arguments expression whitespace)
 
 (defrule return-statement (and (and "RETURN" whitespace) (? expression))
   (:destructure (_ value)
-   (list :type :return-statement :arguments (list value))))
+   (list :type :return-statement :fields (list value))))
 
 (defrule let-statement (and (? (and (or "Let" "Set" "LET") whitespace))
                             assignment-operation)
   (:destructure (_ assignment)
-   (list :type :let-statement :arguments assignment)))
+   (list :type :let-statement :fields assignment)))
 
 (defrule get-statement (and (and (or "Get" "Read") whitespace) identifier-list)
   (:destructure (_ arguments)
-   (list :type :get-statement :arguments arguments)))
+   (list :type :get-statement :fields arguments)))
 
 (defrule open-statement (and (and "Open" whitespace)
                              identifier
@@ -169,8 +176,8 @@ The operator is automatically looked-up with FIND-SYMBOL if it exists."
 (defrule read-statement (and (and "Read" whitespace)
                              (or read-statement-inner-1
                                  read-statement-inner-2))
-  (:destructure (_ arguments)
-   (list :type :read-statement :arguments arguments)))
+  (:destructure (_ fields)
+   (list :type :read-statement :fields fields)))
 
 (defrule read-statement-inner-1 (and identifier-list " from " identifier)
   (:destructure (identifiers _ filespec)
@@ -182,11 +189,11 @@ The operator is automatically looked-up with FIND-SYMBOL if it exists."
 
 (defrule write-statement (and "Write " identifier " from " identifier-list)
   (:destructure (filespec _ identifiers)
-   (list :type :write-statement :arguments (list filespec identifiers))))
+   (list :type :write-statement :fields (list filespec identifiers))))
 
 (defrule close-statement (and "Close " identifier)
   (:destructure (_ filespec)
-   (list :type :close-statement :arguments (list filespec))))
+   (list :type :close-statement :fields (list filespec))))
 
 (defrule dim-statement (and "DIM "
                             identifier
@@ -195,7 +202,7 @@ The operator is automatically looked-up with FIND-SYMBOL if it exists."
                             " as "
                             identifier)
   (:destructure (_ name _ dimensions _ type)
-   (list :type :dim-statement :arguments (list name dimensions type))))
+   (list :type :dim-statement :fields (list name dimensions type))))
 
 (defrule if-statement (and "IF " expression (and " THEN" newline)
                            (* indented-statement)
@@ -203,7 +210,7 @@ The operator is automatically looked-up with FIND-SYMBOL if it exists."
                                    (* indented-statement)))
                            (and (? whitespace) "ENDIF")) ; Cater for indents
   (:destructure (_ condition _ then-block (&optional _ else-block) _)
-   (list :type :if-statement :arguments (list condition then-block else-block))))
+   (list :type :if-statement :fields (list condition then-block else-block))))
 
 (defrule casewhere-statement (and "CASEWHERE " expression (and " evaluates to" newline)
                                   casewhere-statement-choice-list
@@ -214,7 +221,7 @@ The operator is automatically looked-up with FIND-SYMBOL if it exists."
                                           casewhere-statement-process))
                                   (and (? whitespace) "ENDCASE"))
   (:destructure (_ expression _ choices (&optional _ otherwise-process) _)
-   (list :type :casewhere-statement :arguments (list choices :otherwise otherwise-process))))
+   (list :type :casewhere-statement :fields (list choices :otherwise otherwise-process))))
 
 (defrule casewhere-statement-choice-list (* casewhere-statement-choice))
 
@@ -235,7 +242,7 @@ The operator is automatically looked-up with FIND-SYMBOL if it exists."
                               indented-block
                               (and (? whitespace) "ENDWHILE"))
   (:destructure (_ condition _ statements _)
-   (list :type :while-statement :arguments (list condition statements))))
+   (list :type :while-statement :fields (list condition statements))))
 
 (defrule for-statement (and "FOR "
                             assignment-operation
@@ -247,7 +254,7 @@ The operator is automatically looked-up with FIND-SYMBOL if it exists."
                             (and (? whitespace) "NEXT ") identifier)
   (:destructure (_ assignment _ finish-value (&optional _ step-value) _ statements _ variable)
    (list :type :for-statement
-         :arguments (list assignment finish-value step-value statements variable))))
+         :fields (list assignment finish-value step-value statements variable))))
 
 (defrule assignment-operation (and (or array-access-or-procedure-call identifier)
                                    (and (? whitespace) #\= (? whitespace))
@@ -259,7 +266,7 @@ The operator is automatically looked-up with FIND-SYMBOL if it exists."
                                (* indented-statement)
                                (and (? whitespace) "UNTIL ") expression)
   (:destructure (_ statements _ condition)
-   (list :type :repeat-statement :arguments (list condition statements))))
+   (list :type :repeat-statement :fields (list condition statements))))
 
 (defrule expression binary-logical-operation)
 
