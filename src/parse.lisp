@@ -207,7 +207,10 @@ The operator is automatically looked-up with FIND-SYMBOL if it exists."
 
 (defrule casewhere-statement (and "CASEWHERE " expression (and " evaluates to" newline)
                                   casewhere-statement-choice-list
-                                  (? (and (and "OTHERWISE :" whitespace)
+                                  (? (and (and (? whitespace) ; Indent
+                                               "OTHERWISE"
+                                               (? whitespace)
+                                               ":" whitespace)
                                           casewhere-statement-process))
                                   (and (? whitespace) "ENDCASE"))
   (:destructure (_ expression _ choices (&optional _ otherwise-process) _)

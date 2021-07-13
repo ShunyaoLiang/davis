@@ -18,7 +18,16 @@
      ENDWHILE
      Let NumElements = i
      Display “ There are” NumElements “ items loaded into the array”
-END LoadArray"))))
+END LoadArray")))
+
+(test casewhere-test
+  (finishes (parse 'd::casewhere-statement
+"CASEWHERE x evaluates to
+     \"Red\": Display \"Stop\"
+     \"Amber\": Display \"Slow\"
+     \"Green\": Display \"Go\"
+     OTHERWISE: Display \"ERROR\"
+ENDCASE")))
 
 (test simple-statement-tests
   (is-true (equal (parse 'd::display-statement "Display \"Hi\" name")
