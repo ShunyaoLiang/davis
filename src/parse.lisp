@@ -23,7 +23,7 @@
   (let ((delimiter (if (eq delimiter 'whitespace)
                        'whitespace
                        `(and (? whitespace) ,delimiter (? whitespace)))))
-    `(defrule ,symbol (and ,element-type (* (and ,delimiter ,element-type)))
+    `(defrule ,symbol (and (? ,element-type) (* (and ,delimiter ,element-type)))
        (:lambda (production)
         (cons (first production) (mapcar #'second (second production)))))))
 
