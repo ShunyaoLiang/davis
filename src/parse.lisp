@@ -199,7 +199,7 @@ The operator is automatically looked-up with FIND-SYMBOL if it exists."
 
 (defrule if-statement (and "IF " expression (and " THEN" newline)
                            (* indented-statement)
-                           (? (and (and "ELSE" newline)
+                           (? (and (and (? whitespace) "ELSE" newline)
                                    (* indented-statement)))
                            (and (? whitespace) "ENDIF")) ; Cater for indents
   (:destructure (_ condition _ then-block (&optional _ else-block) _)
@@ -210,7 +210,7 @@ The operator is automatically looked-up with FIND-SYMBOL if it exists."
                                   (? (and (and (? whitespace) ; Indent
                                                "OTHERWISE"
                                                (? whitespace)
-                                               ":" whitespace)
+                                               ":")
                                           casewhere-statement-process))
                                   (and (? whitespace) "ENDCASE"))
   (:destructure (_ expression _ choices (&optional _ otherwise-process) _)

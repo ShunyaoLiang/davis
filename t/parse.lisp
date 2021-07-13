@@ -20,7 +20,7 @@
      Display “ There are” NumElements “ items loaded into the array”
 END LoadArray")))
 
-(test casewhere-test
+(test casewhere-statement-test
   (finishes (parse 'd::casewhere-statement
 "CASEWHERE x evaluates to
      \"Red\": Display \"Stop\"
@@ -28,6 +28,20 @@ END LoadArray")))
      \"Green\": Display \"Go\"
      OTHERWISE: Display \"ERROR\"
 ENDCASE")))
+
+(test if-statement-test
+  (finishes (parse 'd::if-statement
+"BEGIN MAINPROGRAM
+	Display Pascal (3, 5)
+END MAINPROGRAM
+
+BEGIN Pascal (Col, Row)
+	IF Col = 0 OR Col = Row THEN
+		RETURN 1
+	ELSE
+		RETURN Pascal (Col, Row - 1) + Pascal (Col - 1, Row - 1)
+	ENDIF
+END Pascal")))
 
 (test simple-statement-tests
   (is-true (equal (parse 'd::display-statement "Display \"Hi\" name")
