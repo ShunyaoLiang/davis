@@ -217,7 +217,7 @@ The operator is automatically looked-up with FIND-SYMBOL if it exists."
                                   (? (and (and (? whitespace) ; Indent
                                                "OTHERWISE"
                                                (? whitespace)
-                                               ":")
+                                               ":" (? whitespace))
                                           casewhere-statement-process))
                                   (and (? whitespace) "ENDCASE"))
   (:destructure (_ expression _ choices (&optional _ otherwise-process) _)
