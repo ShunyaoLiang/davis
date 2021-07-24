@@ -30,7 +30,7 @@ END LoadArray")))
 ENDCASE")))
 
 (test if-statement-test
-  (finishes (parse 'd::if-statement
+  (finishes (parse 'd::top-level-form-list
 "BEGIN MAINPROGRAM
 	Display Pascal (3, 5)
 END MAINPROGRAM
@@ -45,16 +45,16 @@ END Pascal")))
 
 (test simple-statement-tests
   (is-true (equal (parse 'd::display-statement "Display \"Hi\" name")
-                  '(:type :display-statement :arguments ("Hi" davis.user::|name|))))
+                  '(:type :display-statement :fields ("Hi" davis.user::|name|))))
   (signals esrap-parse-error
     (parse 'd::display-statement "DISPLAY \"Only a fool would write this\""))
 
   (is-true (equal (parse 'd::return-statement "RETURN 0")
-                  '(:type :return-statement :arguments (0))))
+                  '(:type :return-statement :fields (0))))
   (signals esrap-parse-error (parse 'd::return-statement "Return"))
 
   (is-true (equal (parse 'd::let-statement "Let CamelCaseName=false")
-                  '(:type :let-statement :arguments (:lhs davis.user::|CamelCaseName| :rhs nil)))))
+                  '(:type :let-statement :fields (:lhs davis.user::|CamelCaseName| :rhs nil)))))
 
 (test <>-test
   (is-true (equal (parse 'd::expression "A <> B")
