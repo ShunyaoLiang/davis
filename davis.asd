@@ -9,10 +9,13 @@
                 :serial t
                 :components ((:file "package")
                              (:file "parser")
-                             (:file "transpiler"))))
+                             (:file "transpiler")
+                             (:file "davis"))))
   :depends-on (:alexandria
                :binding-arrows
                :cffi
                :esrap
                :mmap
-               :parse-number))
+               :parse-number)
+  :entry-point "davis:main"
+  :build-operation "program-op")

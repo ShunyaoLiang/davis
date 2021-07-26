@@ -2,13 +2,16 @@
 
 (in-package :davis.transpiler)
 
+;;; Globals
+
+(defvar *filespec* nil
+  "The file specification of the tree being transpiled.")
+
 ;;; Primary Interface
 
-(defun transpile-tree (tree)
-  (->> tree
-       (mapcar #'transpile-node)
-       (mapc #'print)
-       (mapc #'eval)))
+(defun transpile-tree (tree &optional filespec)
+  (setf *filespec* filespec)
+  (mapcar #'transpile-node tree))
 
 ;;; Functions
 
