@@ -24,8 +24,8 @@
       (destructuring-bind (command &rest arguments) (command-line-arguments)
         (declare (ignore arguments))
         (string-case command
-                     (("i" "interpret") (interpret arguments))
-                     (otherwise (display-help))))))
+          (("i" "interpret") (interpret arguments))
+          (otherwise (display-help))))))
 
 ;;; Functions
 

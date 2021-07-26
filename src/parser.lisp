@@ -57,6 +57,16 @@ The operator is automatically looked-up with FIND-SYMBOL if it exists."
           operand))
      ,@options))
 
+(defmacro movef (place new-value)
+  "Sets PLACE to be NEW-VALUE, returning the previous value of PLACE."
+  `(prog1 ,place (setf ,place ,new-value)))
+
+(defmacro set-insert (item place)
+  "Inserts ITEM into PLACE if ITEM is not already present in PLACE."
+  `(let ((item ,item)) ; Prevent duplicate evaluation.
+     (unless (member item ,place :test #'equalp)
+       (push item ,place))))
+
 ;;; Globals
 
 (defvar *statement-position* nil
@@ -427,16 +437,6 @@ The operator is automatically looked-up with FIND-SYMBOL if it exists."
     (foreign-string-to-lisp address :count (1- size)))) ; The 1- strips the trailing newline. 
 
 (defun <> (a b) (not (equalp a b)))
-
-(defmacro movef (place new-value)
-  "Sets PLACE to be NEW-VALUE, returning the previous value of PLACE."
-  `(prog1 ,place (setf ,place ,new-value)))
-
-(defmacro set-insert (item place)
-  "Inserts ITEM into PLACE if ITEM is not already present in PLACE."
-  `(let ((item ,item)) ; Prevent duplicate evaluation.
-     (unless (member item ,place :test #'equalp)
-       (push item ,place))))
 
 ;;; Warnings
 

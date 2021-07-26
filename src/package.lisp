@@ -6,7 +6,7 @@
   (:export :parse-file))
 
 (defpackage :davis.transpiler
-  (:use :cl)
+  (:use :binding-arrows :cl)
   (:export :transpile-tree))
 
 (defpackage :davis

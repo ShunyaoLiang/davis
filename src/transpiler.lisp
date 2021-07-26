@@ -26,9 +26,9 @@
 (defun transpile-procedure (&key name parameters statements local-bindings arrays)
   (declare (ignore arrays))
   `(defun ,name ,parameters
-     (let ,local-bindings
-       (block nil
-              ,@(mapcar #'transpile-node statements)))))
+     (block nil
+       (let ,local-bindings
+         ,@(mapcar #'transpile-node statements)))))
 
 (defun transpile-display-statement (&rest items)
   `(format t "~{~a~^ ~}~&" (list ,@(mapcar #'transpile-node items))))
