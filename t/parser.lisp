@@ -45,17 +45,25 @@ END Pascal")))
 
 (test simple-statement-tests
   (is-true (equal (parse 'd::display-statement "Display \"Hi\" name")
-                  '(:type :display-statement :fields ("Hi" davis.user::|name|))))
+                  '(:type :display-statement :fields
+                    ((:type :literal :fields ("Hi"))
+                     (:type :binding :fields (davis.user::|name|))))))
   (signals esrap-parse-error
     (parse 'd::display-statement "DISPLAY \"Only a fool would write this\""))
 
   (is-true (equal (parse 'd::return-statement "RETURN 0")
-                  '(:type :return-statement :fields (0))))
+                  '(:type :return-statement
+                    :fields ((:type :literal :fields (0))))))
   (signals esrap-parse-error (parse 'd::return-statement "Return"))
 
   (is-true (equal (parse 'd::let-statement "Let CamelCaseName=false")
-                  '(:type :let-statement :fields (:lhs davis.user::|CamelCaseName| :rhs nil)))))
+                  '(:type :let-statement :fields
+                    (:lhs davis.user::|CamelCaseName|
+                     :rhs (:type :literal :fields (nil)))))))
 
 (test <>-test
   (is-true (equal (parse 'd::expression "A <> B")
-                  '(d::<> davis.user::a davis.user::b))))
+                  '(:type :binary-operation :fields
+                    (list :operator d::<>
+                          :lhs (:type :binding :fields (davis.user::a))
+                          :rhs (:type :binding :fields (davis.user::b)))))))

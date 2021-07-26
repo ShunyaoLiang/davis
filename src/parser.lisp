@@ -35,7 +35,11 @@ The operator is automatically looked-up with FIND-SYMBOL if it exists."
   `(defrule ,symbol (and ,lower-rule (? (and (? whitespace) ,operators (? whitespace) ,symbol)))
      (:destructure (lhs (&optional _ operator _ rhs))
       (if operator
-          `(,(or (find-symbol operator :davis.parser) operator) ,lhs ,rhs)
+          `(:type :binary-operation
+            :fields (list :operator ,(or (find-symbol operator :davis.parser)
+                                         operator)
+                          :lhs ,lhs
+                          :rhs ,rhs))
           lhs))
      ,@options))
 
@@ -47,7 +51,9 @@ The operator is automatically looked-up with FIND-SYMBOL if it exists."
   `(defrule ,symbol (and (? ,operators) (? whitespace) ,lower-rule)
      (:destructure (operator _ operand)
       (if operator
-          `(,(or (find-symbol operator :davis.parser) operator) ,operand)
+          `(list :type :unary-operator
+                 :operator ,(or (find-symbol operator :davis.parser) operator)
+                 :operand ,operand)
           operand))
      ,@options))
 
@@ -315,11 +321,18 @@ The operator is automatically looked-up with FIND-SYMBOL if it exists."
 (defrule value (or literal
                    nested-expression
                    array-access-or-procedure-call
-                   identifier))
+                   value-identifier))
 
-(defrule literal (or numeric-literal string-literal boolean-literal))
+(defrule value-identifier identifier
+  (:lambda (production)
+   (list :type :binding :fields (list production))))
+
+(defrule literal (or numeric-literal string-literal boolean-literal)
+  (:lambda (production)
+   (list :type :literal :fields (list production))))
 
 ;; To future me: you have permission to modify the productions of the literal rules.
+;; Thanks past me.
 
 (defrule numeric-literal (and (+ (digit-char-p character))
                               (? (and #\. (+ (digit-char-p character)))))
@@ -357,7 +370,8 @@ The operator is automatically looked-up with FIND-SYMBOL if it exists."
    (declare (ignore _))
    ;; Do not record the array or procedure identifier as a binding.
    (setf *procedure-local-bindings* (remove name *procedure-local-bindings*))
-   '(:type :array-access-or-procedure-call :stub)))
+   `(:type :array-access-or-procedure-call
+     :fields ,arguments)))
 
 (define-delimited-list-rule expression-list expression #\,)
 
