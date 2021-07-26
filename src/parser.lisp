@@ -56,6 +56,14 @@ The operator is automatically looked-up with FIND-SYMBOL if it exists."
 (defvar *statement-position* nil
   "A hack to obtain the position of the current statement being parsed by the STATEMENT rule.")
 
+;; Modified by: PROCEDURE, IDENTIFIER, DIM-STATEMENT, ARRAY-ACCESS-OR-PROCEDURE-CALL.
+(defvar *procedure-local-bindings* nil
+  "The set of local variable bindings of the current procedure being parsed.")
+
+;; Modified by: DIM-STATEMENT.
+(defvar *procedure-arrays* nil
+  "The set of all arrays declared by the current procedure being parsed.")
+
 ;;; Grammars
 
 ;; TODO: Rename this.
@@ -79,7 +87,11 @@ The operator is automatically looked-up with FIND-SYMBOL if it exists."
    (when (not (string= forename surname))
      (warn 'inconsistent-procedure-names-warning :forename forename :surname surname))
    (list :type 'procedure
-         :fields (list :name forename :parameters parameters :statements statements)
+         :fields (list :name forename
+                       :parameters parameters
+                       :statements statements
+                       :local-bindings (remove forename (movef *procedure-local-bindings* nil)) ; The procedure name is not a binding.   
+                       :arrays (movef *procedure-arrays* nil))
          :meta *statement-position*)))
 
 (defrule parameter-list (and (and #\( (? whitespace)) identifier-list (and (? whitespace) #\)))
@@ -202,6 +214,12 @@ The operator is automatically looked-up with FIND-SYMBOL if it exists."
                             " as "
                             identifier)
   (:destructure (_ name _ dimensions _ type)
+   ;; Arrays should not appear in the list of local bindings as they are global.
+   (setf *procedure-local-bindings* (remove name *procedure-local-bindings*))
+   ;; However, record it in *PROCEDURE-ARRAYS*.
+   (set-insert name *procedure-arrays*) ; SET-INSERT protects us from duplicate definitions.
+   ;; The type name should not appear either as they are not local bindings.
+   (setf *procedure-local-bindings* (remove type *procedure-local-bindings*))
    (list :type :dim-statement :fields (list name dimensions type))))
 
 (defrule if-statement (and "IF " expression (and " THEN" newline)
@@ -335,7 +353,11 @@ The operator is automatically looked-up with FIND-SYMBOL if it exists."
                                              (and (? whitespace) #\()
                                              expression-list
                                              (and (? whitespace) #\)))
-  (:constant '(:type :array-access-or-procedure-call :stub)))
+  (:destructure (name _ arguments _)
+   (declare (ignore _))
+   ;; Do not record the array or procedure identifier as a binding.
+   (setf *procedure-local-bindings* (remove name *procedure-local-bindings*))
+   '(:type :array-access-or-procedure-call :stub)))
 
 (define-delimited-list-rule expression-list expression #\,)
 
@@ -343,7 +365,10 @@ The operator is automatically looked-up with FIND-SYMBOL if it exists."
 
 (defrule identifier (and (+ (or (alphanumericp character) #\- #\_)))
   (:lambda (production)
-   (intern (text production) :davis.user)))
+   ;; Record all identifiers in the current procedure.
+   (let ((interned (intern (text production) :davis.user)))
+     (set-insert interned *procedure-local-bindings*)
+     interned)))
 
 (defrule comment (and (or #\' #\RIGHT_SINGLE_QUOTATION_MARK) (* (not #\Newline)))
   (:constant '(:type :comment))
@@ -388,6 +413,16 @@ The operator is automatically looked-up with FIND-SYMBOL if it exists."
     (foreign-string-to-lisp address :count (1- size)))) ; The 1- strips the trailing newline. 
 
 (defun <> (a b) (not (equalp a b)))
+
+(defmacro movef (place new-value)
+  "Sets PLACE to be NEW-VALUE, returning the previous value of PLACE."
+  `(prog1 ,place (setf ,place ,new-value)))
+
+(defmacro set-insert (item place)
+  "Inserts ITEM into PLACE if ITEM is not already present in PLACE."
+  `(let ((item ,item)) ; Prevent duplicate evaluation.
+     (unless (member item ,place :test #'equalp)
+       (push item ,place))))
 
 ;;; Warnings
 
