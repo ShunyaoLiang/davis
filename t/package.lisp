@@ -4,3 +4,6 @@
   (:use :fiveam :cl)
   (:import-from :esrap :esrap-parse-error :parse)
   (:local-nicknames (:d :davis.parser)))
+
+(defpackage :davis-test.transpiler
+  (:use :fiveam :cl))

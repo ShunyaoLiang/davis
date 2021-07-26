@@ -6,6 +6,7 @@
   (:export :parse-file))
 
 (defpackage :davis.transpiler
-  (:use :cl))
+  (:use :cl)
+  (:export :transpile-tree))
 
 (defpackage :davis.user)

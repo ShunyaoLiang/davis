@@ -8,5 +8,6 @@
   :components ((:module "t"
                 :serial t
                 :components ((:file "package")
-                             (:file "parser"))))
+                             (:file "parser")
+                             (:file "transpiler"))))
   :depends-on (:davis :fiveam))

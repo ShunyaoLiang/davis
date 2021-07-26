@@ -8,7 +8,8 @@
   :components ((:module "src"
                 :serial t
                 :components ((:file "package")
-                             (:file "parser"))))
+                             (:file "parser")
+                             (:file "transpiler"))))
   :depends-on (:alexandria
                :binding-arrows
                :cffi
