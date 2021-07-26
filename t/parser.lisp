@@ -1,10 +1,10 @@
 ;;; Parser module tests.
 
-(in-package :davis-test.parse)
+(in-package :davis-test.parser)
 
-(def-suite parse)
+(def-suite parser)
 
-(in-suite parse)
+(in-suite parser)
 
 (test snippet-tests
   (finishes (parse 'd::top-level-form-list

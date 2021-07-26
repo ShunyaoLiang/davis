@@ -1,6 +1,6 @@
 ;;;; Perform syntactical analysis on Pseudocode text streams.
 
-(in-package :davis.parse)
+(in-package :davis.parser)
 
 ;;; Primary Interface
 
@@ -35,7 +35,7 @@ The operator is automatically looked-up with FIND-SYMBOL if it exists."
   `(defrule ,symbol (and ,lower-rule (? (and (? whitespace) ,operators (? whitespace) ,symbol)))
      (:destructure (lhs (&optional _ operator _ rhs))
       (if operator
-          `(,(or (find-symbol operator :davis.parse) operator) ,lhs ,rhs)
+          `(,(or (find-symbol operator :davis.parser) operator) ,lhs ,rhs)
           lhs))
      ,@options))
 
@@ -47,7 +47,7 @@ The operator is automatically looked-up with FIND-SYMBOL if it exists."
   `(defrule ,symbol (and (? ,operators) (? whitespace) ,lower-rule)
      (:destructure (operator _ operand)
       (if operator
-          `(,(or (find-symbol operator :davis.parse) operator) ,operand)
+          `(,(or (find-symbol operator :davis.parser) operator) ,operand)
           operand))
      ,@options))
 
