@@ -4,13 +4,15 @@
 
 ;;; Primary Interface
 
+(defun parse-pseudocode (pseudocode)
+  "Returns a syntax tree of PSEUDOCODE."
+  (parse 'top-level-form-list pseudocode))
+
 (defun parse-file (filespec)
   "Returns a syntax tree of the Pseudocode in the file named by FILESPEC."
-  ;; TODO: Handle parsing errors.
-  (handler-case (some->> filespec
-                         (mmap-file-to-string) ; Avoid potentially loading a large file into working memory. 
-                         ;; TODO: Handle multiple top-level forms in a file.
-                         (parse 'top-level-form-list))))
+  (some-> filespec
+          (mmap-file-to-string) ; Avoid potentially loading a large file into working memory.
+          (parse-pseudocode)))
 
 ;;; Macros
 

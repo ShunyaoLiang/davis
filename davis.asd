@@ -10,12 +10,16 @@
                 :components ((:file "package")
                              (:file "parser")
                              (:file "transpiler")
+                             (:file "playground")
                              (:file "davis"))))
   :depends-on (:alexandria
+               :asdf
                :binding-arrows
                :cffi
                :esrap
+               :lucerne
                :mmap
-               :parse-number)
+               :parse-number
+               :trivial-dump-core)
   :entry-point "davis:main"
   :build-operation "program-op")
