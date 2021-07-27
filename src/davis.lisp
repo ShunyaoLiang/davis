@@ -16,20 +16,26 @@
       `(let ((,test ,keyform))
          (cond ,@(mapcar #'transform-clause cases))))))
 
+(defmacro print-conditions (&body form)
+  "Print any conditions that are thrown in FORM and continue."
+  `(handler-case (progn ,@form)
+     (error (error) (write error :escape nil))))
+
 ;;; Primary Interface
 
 (defun main ()
   (if (zerop (length (command-line-arguments)))
       (display-help)
       (destructuring-bind (command &rest arguments) (command-line-arguments)
-        (string-case command
-          (("i" "interpret") (load-files arguments)
-                             (funcall (find-entry-point)))
-          (("c" "compile") (load-files arguments)
-                           ;; TODO: Add support for a -o flag.
-                           (save-executable "a.out" (find-entry-point)))
-          (("p" "playground") (start-playground))
-          (otherwise (display-help))))))
+        (print-conditions
+          (string-case command
+            (("i" "interpret") (load-files arguments)
+                               (funcall (find-entry-point)))
+            (("c" "compile") (load-files arguments)
+                             ;; TODO: Add support for a -o flag.
+                             (save-executable "a.out" (find-entry-point)))
+            (("p" "playground") (start-playground))
+            (otherwise (display-help)))))))
 
 ;;; Functions
 
@@ -40,13 +46,13 @@
                 (transpile-tree filespec)
                 (mapc #'eval <>))))
 
-(defun start-playground (&optional (port 32847))
+(defun start-playground (&optional (port 32847)) ; 32847 is DAVIS on a phone keypad :)
   (lucerne:start davis.playground:app :port port :silent t :debug t)
   (format t "Playground started at https://localhost:~a/.~&~
              Type 'exit' to turn off the playground.~&" port)
   ;; TODO: Try to automatically open the user's browser.
   (loop until (string= (read-line) "exit"))
-  (write-line "Co'o")
+  (write-line "co'o")
   (lucerne:stop davis.playground:app))
 
 (defun display-help ()
@@ -55,8 +61,6 @@
           (list "[i | interpret] filespecs..."
                 "[c | compile] filespecs..."
                 "[p | playground]")))
-
-;;; Utilities
 
 (defun find-entry-point ()
   (macrolet ((find-function (symbol)

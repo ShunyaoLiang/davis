@@ -10,8 +10,18 @@
                 :components ((:file "package")
                              (:file "parser")
                              (:file "transpiler")
-                             (:file "playground")
-                             (:file "davis"))))
+                             (:file "davis")  
+                             (:file "playground")))
+               (:module "playground"
+                :components ((:module "images/favicon"
+                              :components ((:static-file "favicon-16x16.png")
+                                           (:static-file "favicon-32x32.png")))
+                             (:module "scripts"
+                              :components ((:static-file "main.js")))
+                             (:module "styles"
+                              :components ((:static-file "style.js")))
+                             (:module "templates"
+                              :components ((:static-file "index.html"))))))
   :depends-on (:alexandria
                :asdf
                :binding-arrows

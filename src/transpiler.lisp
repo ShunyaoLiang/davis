@@ -11,7 +11,9 @@
 
 (defun transpile-tree (tree &optional filespec)
   (setf *filespec* filespec)
-  (mapcar #'transpile-node tree))
+  (->> tree
+       (remove nil)
+       (mapcar #'transpile-node)))
 
 ;;; Functions
 
