@@ -35,5 +35,5 @@
            (transpile-tree)
            (mapc #'eval))
       ;; TODO: Abstract into an executor module perhaps?
-      (funcall (davis::find-entry-point)))
+      (funcall (find-entry-point)))
     (respond (get-output-stream-string *standard-output*))))

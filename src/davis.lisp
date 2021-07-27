@@ -2,25 +2,6 @@
 
 (in-package :davis)
 
-;;; Macros
-
-(defmacro string-case (keyform &rest cases)
-  "CASE for string-matching."
-  (let ((test (gensym "TEST")))
-    (flet ((transform-clause (clause)
-             (destructuring-bind (keys &rest forms) clause
-               (declare (ignore forms))
-               (rplaca clause (cond ((consp keys) `(member ,test ',keys :test #'string=))
-                                    ((eq keys 'otherwise) 't)
-                                    (t `(string= ,test ,keys)))))))
-      `(let ((,test ,keyform))
-         (cond ,@(mapcar #'transform-clause cases))))))
-
-(defmacro print-conditions (&body form)
-  "Print any conditions that are thrown in FORM and continue."
-  `(handler-case (progn ,@form)
-     (error (error) (write error :escape nil))))
-
 ;;; Primary Interface
 
 (defun main ()
@@ -44,6 +25,7 @@
         do (-<> filespec
                 (parse-file)
                 (transpile-tree filespec)
+                ;(mapc (rcurry #'print *error-output*) <>)
                 (mapc #'eval <>))))
 
 (defun start-playground (&optional (port 32847)) ; 32847 is DAVIS on a phone keypad :)
@@ -61,12 +43,6 @@
           (list "[i | interpret] filespecs..."
                 "[c | compile] filespecs..."
                 "[p | playground]")))
-
-(defun find-entry-point ()
-  (macrolet ((find-function (symbol)
-               `(handler-case (symbol-function ,symbol) (type-error () nil))))
-    (or (find-function 'davis.user::mainprogram)
-        (error 'no-entry-point-error))))
 
 ;;; Errors
 

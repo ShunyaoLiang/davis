@@ -25,7 +25,7 @@
   (let ((delimiter (if (eq delimiter 'whitespace)
                        'whitespace
                        `(and (? whitespace) ,delimiter (? whitespace)))))
-    `(defrule ,symbol (and (? ,element-type) (* (and ,delimiter ,element-type)))
+    `(defrule ,symbol (and ,element-type (* (and ,delimiter ,element-type)))
        (:lambda (production)
         (cons (first production) (mapcar #'second (second production)))))))
 
@@ -38,8 +38,8 @@ The operator is automatically looked-up with FIND-SYMBOL if it exists."
      (:destructure (lhs (&optional _ operator _ rhs))
       (if operator
           `(:type :binary-operation
-            :fields (list :operator ,(or (find-symbol operator :davis.parser)
-                                         operator)
+            :fields (:operator ,(or (find-symbol operator :davis.parser)
+                                    operator)
                           :lhs ,lhs
                           :rhs ,rhs))
           lhs))
@@ -53,9 +53,9 @@ The operator is automatically looked-up with FIND-SYMBOL if it exists."
   `(defrule ,symbol (and (? ,operators) (? whitespace) ,lower-rule)
      (:destructure (operator _ operand)
       (if operator
-          `(list :type :unary-operator
-                 :operator ,(or (find-symbol operator :davis.parser) operator)
-                 :operand ,operand)
+          `(:type :unary-operator
+            :operator ,(or (find-symbol operator :davis.parser) operator)
+            :operand ,operand)
           operand))
      ,@options))
 
@@ -85,7 +85,7 @@ The operator is automatically looked-up with FIND-SYMBOL if it exists."
 ;;; Grammars
 
 ;; TODO: Rename this.
-(define-delimited-list-rule top-level-form-list (or procedure record) (+ newline))
+(define-delimited-list-rule top-level-form-list (or procedure record comment) (+ newline))
 
 (defrule procedure (and (and "BEGIN" whitespace)
                         identifier
@@ -104,16 +104,22 @@ The operator is automatically looked-up with FIND-SYMBOL if it exists."
    ;; but users should be warned of it.
    (when (not (string= forename surname))
      (warn 'inconsistent-procedure-names-warning :forename forename :surname surname))
-   (list :type 'procedure
+   (list :type :procedure
          :fields (list :name forename
                        :parameters parameters
                        :statements statements
-                       :local-bindings (remove forename (movef *procedure-local-bindings* nil)) ; The procedure name is not a binding.   
+                       :local-bindings (->> (movef *procedure-local-bindings* nil)
+                                            (remove forename)
+                                            (remove surname)) ; The procedure names are not bindings. 
                        :arrays (movef *procedure-arrays* nil))
          :meta *statement-position*)))
 
-(defrule parameter-list (and (and #\( (? whitespace)) identifier-list (and (? whitespace) #\)))
-  (:function second))
+(defrule parameter-list (and (and #\( (? whitespace)) (? identifier-list) (and (? whitespace) #\)))
+  (:function second)
+  (:lambda (parameters)
+   (if (null (first parameters))
+       nil
+       parameters)))
 
 ;; TODO: FIXME and add warnings for bad indentation.
 ;(defrule indented-block #'parse-indented-block
@@ -198,7 +204,7 @@ The operator is automatically looked-up with FIND-SYMBOL if it exists."
                              (and whitespace "for" whitespace)
                              open-statement-mode)
   (:destructure (_ filespec _ mode)
-   (cons :open-statement (list mode))))
+   (list :type :open-statement (list :filespec filespec :mode mode))))
 
 (defrule open-statement-mode (or "output" "input" "append" "relative access"))
 
@@ -256,8 +262,8 @@ The operator is automatically looked-up with FIND-SYMBOL if it exists."
                                                ":" (? whitespace))
                                           casewhere-statement-process))
                                   (and (? whitespace) "ENDCASE"))
-  (:destructure (_ expression _ choices (&optional _ otherwise-process) _)
-   (list :type :casewhere-statement :fields (list choices :otherwise otherwise-process))))
+  (:destructure (_ test _ choices (&optional _ otherwise-process) _)
+   (list :type :casewhere-statement :fields (list test choices otherwise-process))))
 
 (defrule casewhere-statement-choice-list (* casewhere-statement-choice))
 
@@ -272,7 +278,10 @@ The operator is automatically looked-up with FIND-SYMBOL if it exists."
                                          (and newline (*  indented-statement)))
   (:destructure (a b)
    ;; NEWLINE constantly produces :newline.
-   (if (eq a :newline) b a)))
+   (if (eq a :newline)
+       b
+       ;; Turn one-liners into a list regardless so it is uniform.
+       (list a))))
 
 (defrule while-statement (and "WHILE " expression newline
                               indented-block
@@ -289,6 +298,7 @@ The operator is automatically looked-up with FIND-SYMBOL if it exists."
                             (* indented-statement)
                             (and (? whitespace) "NEXT ") identifier)
   (:destructure (_ assignment _ finish-value (&optional _ step-value) _ statements _ variable)
+   (declare (ignore _))
    (list :type :for-statement
          :fields (list assignment finish-value step-value statements variable))))
 
@@ -401,17 +411,17 @@ The operator is automatically looked-up with FIND-SYMBOL if it exists."
   (:error-report nil))
 
 (defrule record (and "DIM RECORD " identifier newline
-                     record-variable-list
+                     record-slot-list
                      "END RECORD")
-  (:destructure (_ name _ variables _)
-   (list :type :record :name name :variables variables)))
+  (:destructure (_ name _ slots _)
+   (list :type :record :fields (list :name name :slots slots))))
 
 ;; TODO: Add proper indentation support.
-(defrule record-variable-list (* (and (? whitespace) record-variable newline))
+(defrule record-slot-list (* (and (? whitespace) record-slot newline))
   (:lambda (production)
    (mapcar #'second production)))
 
-(defrule record-variable (and identifier " as " (and identifier (? (and (? whitespace) dimension-list))))
+(defrule record-slot (and identifier " as " (and identifier (? (and (? whitespace) dimension-list))))
   (:destructure ( name _ (type &optional _ dimensions))
    (list :name name :type type :dimensions dimensions)))
 
@@ -444,7 +454,13 @@ The operator is automatically looked-up with FIND-SYMBOL if it exists."
 
 (define-condition inconsistent-procedure-names-warning (warning)
   ((forename :initarg :forename)
-   (surname :initarg :surname)))
+   (surname :initarg :surname))
+  (:report (lambda (condition stream)
+             (with-slots (forename surname) condition
+               (format stream
+                       "Procedure ~a is inconsistently named ~a"
+                       forename
+                       surname)))))
 
 (define-condition indentation-warning (warning)
   ((position :initarg :position)))

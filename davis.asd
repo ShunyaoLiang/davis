@@ -8,6 +8,7 @@
   :components ((:module "src"
                 :serial t
                 :components ((:file "package")
+                             (:file "utilities")
                              (:file "parser")
                              (:file "transpiler")
                              (:file "davis")  
