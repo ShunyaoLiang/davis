@@ -94,7 +94,7 @@ body {
 	margin: 30px;
 }
 
-#editor .panel pre {
+#editor pre {
 	margin-top: 0;
 	margin-bottom: 0;
 	font-family: 'Roboto Mono', monospace;

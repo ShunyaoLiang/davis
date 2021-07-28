@@ -19,3 +19,31 @@ async function run_code() {
 
 	console.log(result);
 }
+
+$(document).ready(function() {
+	$('#user-input').keydown(function(event) {
+		// Get the character to insert.
+		let c;
+		switch (event.key) {
+			case 'Tab':
+				c = '\t';
+				break;
+			case 'Enter':
+				c = '\n';
+				break;
+			// If it is not one of the above cases, default behaviour is fine.
+			default:
+				return;
+		}
+		// Otherwise, browsers will insert <br> or <div> on Enter and change focus on Tab.
+		event.preventDefault();
+		// Insert the text.
+		let text = this.textContent.trim(),
+			position = $('#user-input').caret('pos'),
+			left = text.substring(0, position)
+		    right = text.substring(position);
+		this.textContent = left + c + right;
+		// Increment the caret.
+		$('#user-input').caret('pos', position + 1);
+	})
+})

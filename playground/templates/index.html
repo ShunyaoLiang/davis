@@ -2,11 +2,14 @@
 <html lang="en">
 	<head>
 		<title> Davis </title>
+		<meta charset="utf-8">
 
 		<link rel="icon" type="image/png" sizes="32x32" href="/static/images/favicon/favicon-32x32.png">
 		<link rel="icon" type="image/png" sizes="16x16" href="/static/images/favicon/favicon-16x16.png">
 		<meta name="theme-color" content="#ffffff">
 
+		<script src="/static/scripts/jquery.js"></script>
+		<script src="/static/scripts/caret.js"></script>
 		<script src="/static/scripts/main.js"></script>
 
 		<link rel="stylesheet" href="/static/styles/style.css">
@@ -20,17 +23,16 @@
 
 		<div id="editor">
 			<div>
-				<div id="user-input" class="panel" contenteditable spellcheck=false>
-					<pre>
+				<pre id="user-input" class="panel" contenteditable spellcheck=false>
 ' Enter your program here, and press <b>Run Code</b> to see the output.
 BEGIN MAINPROGRAM
 	Display "Hello, world!"
-END MAINPROGRAM</pre>
-				</div>
+END MAINPROGRAM
+				</pre>
 				<button type="button" onclick="run_code()">▶ Run Code</button>
 			</div>
 
-			<div class="panel" spellcheck=false><pre id="output">Hello, world!</pre></div>
+			<pre id="output" class="panel" spellcheck=false>Hello, world!</pre>
 		</div>
 	</body>
 </html>
