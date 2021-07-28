@@ -4,7 +4,7 @@
   :description "An SDD Pseudocode implementation"
   :author "Shunyao Liang <shunyao.liang@education.nsw.gov.au>"
   :license "MIT"
-  :version "0.0.4"
+  :version "0.1.0"
   :components ((:module "src"
                 :serial t
                 :components ((:file "package")
