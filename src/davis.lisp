@@ -5,6 +5,9 @@
 ;;; Primary Interface
 
 (defun main ()
+  ;; Initialise the random state.
+  (setf *random-state* (make-random-state t))
+  
   (if (zerop (length (command-line-arguments)))
       (display-help)
       (destructuring-bind (command &rest arguments) (command-line-arguments)
@@ -43,6 +46,9 @@
           (list "[i | interpret] filespecs..."
                 "[c | compile] filespecs..."
                 "[p | playground]")))
+
+(defun davis.user::|Random| (high)
+  (random (1+ (funcall high))))
 
 ;;; Errors
 

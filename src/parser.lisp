@@ -2,10 +2,30 @@
 
 (in-package :davis.parser)
 
+;;; Globals
+
+(defvar *statement-position* nil
+  "A hack to obtain the position of the current statement being parsed by the STATEMENT rule.")
+
+;; Modified by: PROCEDURE, IDENTIFIER, DIM-STATEMENT, ARRAY-ACCESS-OR-PROCEDURE-CALL.
+(defvar *procedure-local-bindings* nil
+  "The set of local variable bindings of the current procedure being parsed.")
+
+;; Modified by: DIM-STATEMENT.
+(defvar *procedure-arrays* nil
+  "The set of all arrays declared by the current procedure being parsed.")
+
+;; This is very similar to *PROCEDURE-ARRAYS*, but that is cleared for every procedure. This keeps
+;; all arrays across parsing an entire program. Exported.
+;; Modified by: DIM-STATEMENT, PROCEDURE
+(defvar *program-arrays* nil
+  "The set of all arrays declared by the current program being parsed.") 
+
 ;;; Primary Interface
 
 (defun parse-pseudocode (pseudocode)
   "Returns a syntax tree of PSEUDOCODE."
+  (setf *program-arrays* nil)
   (parse 'top-level-form-list pseudocode))
 
 (defun parse-file (filespec)
@@ -53,9 +73,9 @@ The operator is automatically looked-up with FIND-SYMBOL if it exists."
   `(defrule ,symbol (and (? ,operators) (? whitespace) ,lower-rule)
      (:destructure (operator _ operand)
       (if operator
-          `(:type :unary-operator
-            :operator ,(or (find-symbol operator :davis.parser) operator)
-            :operand ,operand)
+          `(:type :unary-operation
+            :fields (:operator ,(or (find-symbol operator :davis.parser) operator)
+                     :operand ,operand))
           operand))
      ,@options))
 
@@ -68,19 +88,6 @@ The operator is automatically looked-up with FIND-SYMBOL if it exists."
   `(let ((item ,item)) ; Prevent duplicate evaluation.
      (unless (member item ,place :test #'equalp)
        (push item ,place))))
-
-;;; Globals
-
-(defvar *statement-position* nil
-  "A hack to obtain the position of the current statement being parsed by the STATEMENT rule.")
-
-;; Modified by: PROCEDURE, IDENTIFIER, DIM-STATEMENT, ARRAY-ACCESS-OR-PROCEDURE-CALL.
-(defvar *procedure-local-bindings* nil
-  "The set of local variable bindings of the current procedure being parsed.")
-
-;; Modified by: DIM-STATEMENT.
-(defvar *procedure-arrays* nil
-  "The set of all arrays declared by the current procedure being parsed.")
 
 ;;; Grammars
 
@@ -111,7 +118,8 @@ The operator is automatically looked-up with FIND-SYMBOL if it exists."
                        :local-bindings (->> (movef *procedure-local-bindings* nil)
                                             (remove forename)
                                             (remove surname)                          ; The procedure names are not bindings.
-                                            (remove-if (rcurry #'member parameters))) ; Neither are the parameters
+                                            (remove-if (rcurry #'member parameters))  ; Neither are the parameters 
+                                            (remove-if (rcurry #'member *program-arrays*))) ; Neither are arrays
                        :arrays (movef *procedure-arrays* nil))
          :meta *statement-position*)))
 
@@ -176,7 +184,8 @@ The operator is automatically looked-up with FIND-SYMBOL if it exists."
    (setf *statement-position* (list :start start :end end))
    (call-transform))
   (:lambda (statement)
-   (append statement '(:meta) (list *statement-position*))))
+   (when (getf statement :type) ; Don't annotate comments.
+     (append statement '(:meta) (list *statement-position*)))))
 
 (defrule display-statement (and (and "Display" whitespace) display-statement-arguments)
   (:destructure (_ fields)
@@ -241,8 +250,9 @@ The operator is automatically looked-up with FIND-SYMBOL if it exists."
   (:destructure (_ name _ dimensions _ type)
    ;; Arrays should not appear in the list of local bindings as they are global.
    (setf *procedure-local-bindings* (remove name *procedure-local-bindings*))
-   ;; However, record it in *PROCEDURE-ARRAYS*.
+   ;; However, record it in *PROCEDURE-ARRAYS* and *PROGRAM-ARRAYS*.
    (set-insert name *procedure-arrays*) ; SET-INSERT protects us from duplicate definitions.
+   (set-insert name *program-arrays*)
    ;; The type name should not appear either as they are not local bindings.
    (setf *procedure-local-bindings* (remove type *procedure-local-bindings*))
    (list :type :dim-statement :fields (list name dimensions type))))
@@ -291,17 +301,20 @@ The operator is automatically looked-up with FIND-SYMBOL if it exists."
    (list :type :while-statement :fields (list condition statements))))
 
 (defrule for-statement (and "FOR "
-                            assignment-operation
+                            identifier
+                            " = "
+                            expression
                             (or " TO " " to ")
                             expression
                             (? (and " STEP " expression))
                             newline
                             (* indented-statement)
                             (and (? whitespace) "NEXT ") identifier)
-  (:destructure (_ assignment _ finish-value (&optional _ step-value) _ statements _ variable)
-   (declare (ignore _))
+  (:destructure (_ counter _ init-value _ finish-value (&optional _ step-value) _ statements _ counter*)
+   (declare (ignore _ counter*))
+   ;; TODO: Compare counter identifiers.
    (list :type :for-statement
-         :fields (list assignment finish-value step-value statements variable))))
+         :fields (list counter init-value finish-value step-value statements))))
 
 (defrule assignment-operation (and (or array-access-or-procedure-call identifier)
                                    (and (? whitespace) #\= (? whitespace))
@@ -322,10 +335,12 @@ The operator is automatically looked-up with FIND-SYMBOL if it exists."
 (define-unary-operation-rule not-operation equality-operation "NOT")
 
 (define-binary-operation-rule equality-operation comparison-operation "="
-  (:lambda (form)
-   (if (and (consp form) (string= (first form) "="))
-       (rplaca form 'equalp)
-       form)))
+  (:destructure (&whole form &key type fields)
+   (declare (ignore type))
+   (handler-case (when (eq (getf fields :operator) '=)
+                   (setf (getf fields :operator) 'equalp))
+     (simple-type-error () form))
+   form))
 
 (define-binary-operation-rule comparison-operation term-operation (or "<=" ">=" "<>" "<" ">"))
 
@@ -336,10 +351,13 @@ The operator is automatically looked-up with FIND-SYMBOL if it exists."
 (define-unary-operation-rule sign-operation length-of-operation (or "+" "-"))
 
 (define-unary-operation-rule length-of-operation value "Length of"
-  (:lambda (form)
-   (if (and (consp form) (string= (first form) "Length of"))
-       (rplaca form 'length)
-       form)))
+  (:destructure (&whole form &key type fields)
+   (declare (ignore type))
+   (handler-case
+     (when (string= (getf fields :operator) "Length of")
+       (setf (getf fields :operator) 'length))
+     (simple-type-error () form))
+   form))
 
 (defrule value (or literal
                    nested-expression
@@ -387,7 +405,7 @@ The operator is automatically looked-up with FIND-SYMBOL if it exists."
 
 (defrule array-access-or-procedure-call (and identifier
                                              (and (? whitespace) #\()
-                                             expression-list
+                                             (? expression-list)
                                              (and (? whitespace) #\)))
   (:destructure (name _ arguments _)
    (declare (ignore _))

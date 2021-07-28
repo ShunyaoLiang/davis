@@ -18,9 +18,13 @@
 
 ;;; Macros
 
-(defmacro guard (form meta)
+(defmacro box (place)
+  `(lambda (&optional v)
+     (if v (setf ,place v) ,place)))
+
+(defmacro guard (meta &rest form)
   "Amend all errors thrown in FORM to hold their textual metadata."
-  `(handler-case ,form
+  `(handler-case (progn ,@form)
      (error (error) (error 'runtime-error :internal error :meta ',meta))))
 
 ;;; Primary Interface
@@ -46,10 +50,13 @@
 
 (defun transpile-procedure (&key name parameters statements local-bindings arrays)
   (declare (ignore arrays))
-  `(defun ,name ,parameters
-     (block nil
-       (let ,local-bindings
-         ,@(transpile-nodes statements)))))
+  (if-let (intersection (intersection parameters *program-arrays*))
+    (error 'parameter-shadows-array-error :intersection intersection))
+  (let ((*procedure-arguments* parameters))
+    `(defun ,name ,parameters
+       (block nil
+         (let ,local-bindings
+           ,@(transpile-nodes statements))))))
 
 (defun transpile-display-statement (&rest items)
   `(format t "~{~a~^ ~}~&" (list ,@(transpile-nodes items))))
@@ -60,7 +67,12 @@
 (defun transpile-let-statement (&key lhs rhs)
   (let ((lhs (if (consp lhs) (transpile-node lhs) lhs)) ; Only TRANSPILE-NODE if it is an assignment to an array access.
         (rhs (transpile-node rhs)))
-    `(setf ,lhs ,rhs)))
+    ;; Is this a parameter modification?
+    (cond ((and (consp lhs) (eq (car lhs) 'funcall))
+           (append lhs (list rhs))) ; It is already being unboxed; i.e. it is treating a parameter as an array.
+          ((member lhs *procedure-arguments*)
+           `(funcall ,lhs ,rhs))
+          (t `(setf ,lhs ,rhs)))))
 
 (defun transpile-get-statement (&rest arguments)
   (flet ((make-receiver (symbol)
@@ -96,7 +108,8 @@
   `(close ,filespec))
 
 (defun transpile-dim-statement (name dimensions type)
-  `(defparameter ,name (make-array ,dimensions :element-type ,type)))
+  (declare (ignore type))
+  `(defparameter ,name (make-array ',dimensions :element-type t)))
 
 (defun transpile-if-statement (condition then-block else-block)
   `(if ,(transpile-node condition)
@@ -114,24 +127,34 @@
   `(loop while ,(transpile-node condition)
          do ,@(transpile-nodes statements)))
 
-(defun transpile-for-statement (assignment finish-value step-value statements variable)
-  (destructuring-bind (&key lhs rhs) assignment
-    `(loop with ,lhs = ,(transpile-node rhs)
-           until (equalp ,variable ,(transpile-node finish-value))
-           do ,@(transpile-nodes statements)
-           (incf ,variable ,(if step-value ; There are cases where the step-value is omitted.
-                                (transpile-node step-value)
-                                1)))))
+(defun transpile-for-statement (counter init-value finish-value step-value statements)
+  `(loop with ,counter = ,(transpile-node init-value)
+         until (equalp ,counter ,(transpile-node finish-value))
+         do ,@(transpile-nodes statements)
+         (incf ,counter ,(if step-value ; There are cases where the step-value is omitted.
+                             (transpile-node step-value)
+                             1))))
 
 (defun transpile-repeat-statement (condition statements)
   `(loop do ,@(transpile-nodes statements)
          until ,(transpile-node condition)))
 
+(defun transpile-array-access-or-procedure-call (&key identifier arguments)
+  ;; Is this an array access?
+  (let ((subscripts (mapcar (curry #'list '1-) (transpile-nodes arguments))))
+    (cond ((member identifier *program-array-symbols*)
+           `(aref ,identifier ,@subscripts))
+          ((member identifier *procedure-arguments*)
+           `(aref (funcall ,identifier) ,@subscripts))
+          ;; Otherwise, procedure call.
+          (t `(,identifier ,@(loop for argument in (transpile-nodes arguments)
+                                   collect `(box ,argument)))))))
+
 (defun transpile-binary-operation (&key operator lhs rhs)
-  `(guard (,operator ,(transpile-node lhs) ,(transpile-node rhs)) ,*node-meta*))
+  `(guard ,*node-meta* (,operator ,(transpile-node lhs) ,(transpile-node rhs))))
 
 (defun transpile-unary-operation (&key operator operand)
-  `(guard (,operator ,(transpile-node operand)) ,*node-meta*))
+  `(guard ,*node-meta* (,operator ,(transpile-node operand))))
 
 (defun transpile-record (&key name slots)
   `(defstruct ,name
@@ -146,7 +169,10 @@
   nil)
 
 (defun transpile-binding (binding)
-  binding)
+  ;; If the binding is a parameter, it must be 'unboxed'.
+  (if (member binding *procedure-arguments*)
+      `(funcall ,binding)
+      binding))
 
 (defun transpile-literal (literal)
   literal)
@@ -169,3 +195,9 @@
   (:report (lambda (condition stream)
              (with-slots (internal meta) condition
                (format stream "~a at ~a" internal meta)))))
+
+(define-condition parameter-shadows-array-warning (error)
+  ((intersection :initarg :intersection))
+  (:report (lambda (condition stream)
+             (with-slots (intersection) condition
+               (format stream "Array with same name as parameter: ~a" intersection)))))

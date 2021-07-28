@@ -4,13 +4,15 @@
 
 (defpackage :davis.parser
   (:use :binding-arrows :cl :esrap :parse-number)
-  (:import-from :alexandria :rcurry :switch)
+  (:import-from :alexandria :rcurry :removef :switch)
   (:import-from :cffi :foreign-string-to-lisp)
   (:import-from :mmap :with-mmap)
-  (:export :parse-file :parse-pseudocode))
+  (:export :parse-file :parse-pseudocode :*program-arrays*))
 
 (defpackage :davis.transpiler
   (:use :binding-arrows :cl)
+  (:import-from :alexandria :if-let :curry)
+  (:import-from :davis.parser :*program-arrays*)
   (:import-from :davis.utilities :string-case)
   (:export :transpile-tree))
 
