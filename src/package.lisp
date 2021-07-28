@@ -1,12 +1,13 @@
 (defpackage :davis.utilities
   (:use :cl)
-  (:export :find-entry-point :print-conditions :string-case))
+  (:export :eval-muffling-warnings :find-entry-point :print-conditions :string-case))
 
 (defpackage :davis.parser
   (:use :binding-arrows :cl :esrap :parse-number)
   (:import-from :alexandria :rcurry :removef :switch)
   (:import-from :cffi :foreign-string-to-lisp)
   (:import-from :mmap :with-mmap)
+  (:shadow :< :> :<= :>=)
   (:export :parse-file :parse-pseudocode :*program-arrays*))
 
 (defpackage :davis.transpiler
@@ -21,7 +22,11 @@
   (:import-from :alexandria :rcurry :switch)
   (:import-from :davis.parser :parse-file)
   (:import-from :davis.transpiler :transpile-tree)
-  (:import-from :davis.utilities :find-entry-point :print-conditions :string-case)
+  (:import-from :davis.utilities
+                :eval-muffling-warnings
+                :find-entry-point
+                :print-conditions
+                :string-case)
   (:import-from :trivial-dump-core :save-executable)
   (:import-from :uiop :command-line-arguments)
   (:export :main))
@@ -33,7 +38,7 @@
   (:import-from :asdf :system-relative-pathname)
   (:import-from :davis.parser :parse-pseudocode)
   (:import-from :davis.transpiler :transpile-tree)
-  (:import-from :davis.utilities :find-entry-point :print-conditions)
+  (:import-from :davis.utilities :eval-muffling-warnings :find-entry-point :print-conditions)
   (:import-from :djula :add-template-directory :compile-template*)
   (:import-from :hunchentoot :raw-post-data)
   (:export :app))

@@ -29,3 +29,7 @@
                `(handler-case (symbol-function ,symbol) (type-error () nil))))
     (or (find-function 'davis.user::mainprogram)
         (error 'no-entry-point-error))))
+
+(defun eval-muffling-warnings (original-exp)
+  (handler-bind (#+sbcl (warning #'muffle-warning))
+    (eval original-exp)))

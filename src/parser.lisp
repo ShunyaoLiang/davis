@@ -469,6 +469,30 @@ The operator is automatically looked-up with FIND-SYMBOL if it exists."
 
 (defun <> (a b) (not (equalp a b)))
 
+(defgeneric <= (a b)
+  (:method ((a number) (b number))
+   (cl:<= a b))
+  (:method ((a string) (b string))
+   (string<= a b)))
+
+(defgeneric < (a b)
+  (:method ((a number) (b number))
+   (cl:< a b))
+  (:method ((a string) (b string))
+   (string< a b)))
+
+(defgeneric >= (a b)
+  (:method ((a number) (b number))
+   (cl:>= a b))
+  (:method ((a string) (b string))
+   (string>= a b)))
+
+(defgeneric > (a b)
+  (:method ((a number) (b number))
+   (cl:> a b))
+  (:method ((a string) (b string))
+   (string> a b)))
+
 ;;; Warnings
 
 (define-condition inconsistent-procedure-names-warning (warning)

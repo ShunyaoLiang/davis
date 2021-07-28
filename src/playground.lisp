@@ -33,7 +33,7 @@
       (->> pseudocode
            (parse-pseudocode)
            (transpile-tree)
-           (mapc #'eval))
+           (mapc #'eval-muffling-warnings))
       ;; TODO: Abstract into an executor module perhaps?
       (funcall (find-entry-point)))
     (respond (get-output-stream-string *standard-output*))))

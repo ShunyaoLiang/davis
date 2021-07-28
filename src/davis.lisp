@@ -24,12 +24,13 @@
 ;;; Functions
 
 (defun load-files (filespecs)
+  ;; Muffle style warnings as they usually are about the generated code.
   (loop for filespec in filespecs
         do (-<> filespec
                 (parse-file)
                 (transpile-tree filespec)
                 ;(mapc (rcurry #'print *error-output*) <>)
-                (mapc #'eval <>))))
+                (mapc #'eval-muffling-warnings <>))))
 
 (defun start-playground (&optional (port 32847)) ; 32847 is DAVIS on a phone keypad :)
   (lucerne:start davis.playground:app :port port :silent t :debug t)

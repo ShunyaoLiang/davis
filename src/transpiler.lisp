@@ -19,8 +19,14 @@
 ;;; Macros
 
 (defmacro box (place)
-  `(lambda (&optional v)
-     (if v (setf ,place v) ,place)))
+  ;; Do not box literals.
+  (if (or (typep place 'number)
+          (typep place 'string)
+          (eq place 't)
+          (eq place 'nil))
+      `(lambda () ,place)
+      `(lambda (&optional v)
+         (if v (setf ,place v) ,place))))
 
 (defmacro guard (meta &rest form)
   "Amend all errors thrown in FORM to hold their textual metadata."
@@ -35,6 +41,7 @@
         *program-array-symbols* nil)
   (->> tree
        (mapc #'collect-arrays)
+       (mapc #'bind-dummy-function)
        (transpile-nodes)))
 
 ;;; Functions
@@ -59,7 +66,16 @@
            ,@(transpile-nodes statements))))))
 
 (defun transpile-display-statement (&rest items)
-  `(format t "~{~a~^ ~}~&" (list ,@(transpile-nodes items))))
+  `(format t "~{~a~^ ~}~&" (preprint (list ,@(transpile-nodes items)))))
+
+(defun preprint (objs)
+  (loop for obj in objs
+        collect (cond ((eq t obj) "true")
+                      ((eq nil obj) "false")
+                      ((and (typep obj 'array)
+                            (not (typep obj 'string)))
+                       (format nil "[~{~a~^,~^ ~}]" (coerce obj 'list)))
+                      (t obj))))
 
 (defun transpile-return-statement (value)
   `(return ,(transpile-node value)))
@@ -186,6 +202,11 @@
   (->> nodes
        (remove nil)
        (mapcar #'transpile-node)))
+
+(defun bind-dummy-function (form)
+  (when (eq (getf form :type) :procedure)
+    (setf (symbol-function (getf (getf form :fields) :name))
+          (lambda (&rest _) (declare (ignore _))))))
 
 ;;; Errors
 
