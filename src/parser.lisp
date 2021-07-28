@@ -110,7 +110,8 @@ The operator is automatically looked-up with FIND-SYMBOL if it exists."
                        :statements statements
                        :local-bindings (->> (movef *procedure-local-bindings* nil)
                                             (remove forename)
-                                            (remove surname)) ; The procedure names are not bindings. 
+                                            (remove surname)                          ; The procedure names are not bindings.
+                                            (remove-if (rcurry #'member parameters))) ; Neither are the parameters
                        :arrays (movef *procedure-arrays* nil))
          :meta *statement-position*)))
 
@@ -393,7 +394,7 @@ The operator is automatically looked-up with FIND-SYMBOL if it exists."
    ;; Do not record the array or procedure identifier as a binding.
    (setf *procedure-local-bindings* (remove name *procedure-local-bindings*))
    `(:type :array-access-or-procedure-call
-     :fields ,arguments)))
+     :fields (:identifier ,name :arguments ,arguments))))
 
 (define-delimited-list-rule expression-list expression #\,)
 
@@ -407,7 +408,7 @@ The operator is automatically looked-up with FIND-SYMBOL if it exists."
      interned)))
 
 (defrule comment (and (or #\' #\RIGHT_SINGLE_QUOTATION_MARK) (* (not #\Newline)))
-  (:constant '(:type :comment))
+  (:constant nil)
   (:error-report nil))
 
 (defrule record (and "DIM RECORD " identifier newline

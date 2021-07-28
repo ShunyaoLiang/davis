@@ -4,7 +4,7 @@
 
 (defpackage :davis.parser
   (:use :binding-arrows :cl :esrap :parse-number)
-  (:import-from :alexandria :switch)
+  (:import-from :alexandria :rcurry :switch)
   (:import-from :cffi :foreign-string-to-lisp)
   (:import-from :mmap :with-mmap)
   (:export :parse-file :parse-pseudocode))

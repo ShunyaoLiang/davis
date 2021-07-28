@@ -10,10 +10,10 @@
 (defvar *procedure-arguments* nil
   "The arguments of the procedure being transpiled.")
 
-(defvar *program-array-symbols*
+(defvar *program-array-symbols* nil
   "The symbols of the arrays of the program being transpiled.")
 
-(defvar *node-meta*
+(defvar *node-meta* nil
   "The :META field of the node being transpiled.")
 
 ;;; Macros
@@ -141,6 +141,9 @@
                            (if dimensions
                                `(make-array ,dimensions)
                                nil)))))
+
+(defun transpile-comment ()
+  nil)
 
 (defun transpile-binding (binding)
   binding)
