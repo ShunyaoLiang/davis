@@ -3,10 +3,11 @@
   (:export :eval-muffling-warnings :find-entry-point :print-conditions :string-case))
 
 (defpackage :davis.parser
-  (:use :binding-arrows :cl :esrap :parse-number)
+  (:use :binding-arrows :cl :esrap)
   (:import-from :alexandria :rcurry :removef :switch)
   (:import-from :cffi :foreign-string-to-lisp)
   (:import-from :mmap :with-mmap)
+  (:import-from :parse-number :parse-number)
   (:shadow :< :> :<= :>=)
   (:export :parse-file :parse-pseudocode :*program-arrays*))
 
@@ -15,6 +16,7 @@
   (:import-from :alexandria :if-let :curry)
   (:import-from :davis.parser :*program-arrays*)
   (:import-from :davis.utilities :string-case)
+  (:import-from :parse-number :parse-number)
   (:export :transpile-tree))
 
 (defpackage :davis

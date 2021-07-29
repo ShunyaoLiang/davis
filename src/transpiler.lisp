@@ -33,6 +33,13 @@
   `(handler-case (progn ,@form)
      (error (error) (error 'runtime-error :internal error :meta ',meta))))
 
+(defmacro get-input (symbol)
+  `(progn (format t "~a: " ,(string symbol))
+          (finish-output)
+          (setf ,symbol (let ((line (read-line)))
+                          (handler-case (parse-number line)
+                            (error () line))) )))
+
 ;;; Primary Interface
 
 (defun transpile-tree (tree &optional filespec)
@@ -91,13 +98,10 @@
           (t `(setf ,lhs ,rhs)))))
 
 (defun transpile-get-statement (&rest arguments)
-  (flet ((make-receiver (symbol)
-           `(progn (format t "~a: " ,(string symbol))
-                   (setf ,symbol (read)))))
     (if (> (length arguments) 1)
         `(loop for argument in ,arguments
-           do ,@(cdr (make-receiver 'argument))) ; The PROGN is unecessary in LOOP.
-        (make-receiver (first arguments)))))
+           do `(get-input argument))
+        `(get-input ,(first arguments))))
 
 (defun transpile-open-statement (&key filespec mode)
   (list 'setf filespec
