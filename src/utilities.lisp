@@ -21,6 +21,10 @@
   `(handler-case (progn ,@form)
      (error (error) (write error :escape nil))))
 
+(defmacro movef (place new-value)
+  "Sets PLACE to be NEW-VALUE, returning the previous value of PLACE."
+  `(prog1 ,place (setf ,place ,new-value)))
+
 ;;; Functions
 
 (defun find-entry-point ()

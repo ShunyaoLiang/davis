@@ -33,6 +33,8 @@
                :lucerne
                :mmap
                :parse-number
-               :trivial-dump-core)
+               :sb-concurrency
+               :trivial-dump-core
+               :websocket-driver)
   :entry-point "davis:main"
   :build-operation "program-op")

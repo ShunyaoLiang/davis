@@ -2,6 +2,14 @@
 
 (in-package :davis)
 
+;;; Globals
+
+(defparameter *ws* nil
+  "The websocket server for requesting user inputs.")
+
+(defparameter *user-input* nil
+  "The most recent response to user input.")
+
 ;;; Primary Interface
 
 (defun main ()
@@ -33,13 +41,26 @@
                 (mapc #'eval-muffling-warnings <>))))
 
 (defun start-playground (&optional (port 32847)) ; 32847 is DAVIS on a phone keypad :)
-  (lucerne:start davis.playground:app :port port :silent t :debug t)
-  (format t "Playground started at https://localhost:~a/.~&~
-             Type 'exit' to turn off the playground.~&" port)
-  ;; TODO: Try to automatically open the user's browser.
-  (loop until (string= (read-line) "exit"))
-  (write-line "co'o")
-  (lucerne:stop davis.playground:app))
+  (let ((*playground-running-p* t))
+    (clack:clackup #'playground-input-server :port (1+ port) :silent t)
+    (lucerne:start davis.playground:app :port port :silent t :debug t)
+    (format t "Playground started at https://localhost:~a/.~&~
+               Type 'exit' to turn off the playground.~&" port)
+    ;; TODO: Try to automatically open the user's browser.
+    (loop until (string= (read-line) "exit"))
+    (write-line "co'o")
+    (websocket-driver:close-connection *ws*)
+    (lucerne:stop davis.playground:app)))
+
+;; TODO: This should be moved to the playground module.
+(defun playground-input-server (env)
+  (setf *ws* (websocket-driver:make-server env))
+  (websocket-driver:on :message *ws*
+                       (lambda (msg)
+                         (setf *user-input* msg)))
+  (lambda (responder)
+    (declare (ignore responder))
+    (websocket-driver:start-connection *ws*)))
 
 (defun display-help ()
   (format t "Usage:~%~

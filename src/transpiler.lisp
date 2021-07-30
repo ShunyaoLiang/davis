@@ -16,6 +16,9 @@
 (defvar *node-meta* nil
   "The :META field of the node being transpiled.")
 
+(defparameter *playground-running-p* nil
+  "A flag for whether the playground is running. This changes the behaviour of get statements.") 
+
 ;;; Macros
 
 (defmacro box (place)
@@ -34,11 +37,18 @@
      (error (error) (error 'runtime-error :internal error :meta ',meta))))
 
 (defmacro get-input (symbol)
-  `(progn (format t "~a: " ,(string symbol))
-          (finish-output)
-          (setf ,symbol (let ((line (read-line)))
-                          (handler-case (parse-number line)
-                            (error () line))) )))
+  ;; If this is in command-line mode, we need to talk to *STANDARD-INPUT*. It gets funky to allow
+  ;; the playground to interact as well.
+  `(if *playground-running-p*
+       ;; Make an interrupt so that DAVIS.PLAYGROUND::EVALUATE will send a string back early, and
+       ;; prompt the user for input.
+       (progn (websocket-driver:send davis::*ws* ,(string symbol))
+              ;; Block on waiting for user input.
+              (loop until davis::*user-input*)
+              (try-parse-number (movef davis::*user-input* nil)))
+       (progn (format t "~a: " ,(string symbol))
+              (finish-output)
+              (setf ,symbol (try-parse-number (read-line))))))
 
 ;;; Primary Interface
 
@@ -99,9 +109,9 @@
 
 (defun transpile-get-statement (&rest arguments)
     (if (> (length arguments) 1)
-        `(loop for argument in ,arguments
-           do `(get-input argument))
-        `(get-input ,(first arguments))))
+        `(progn ,@(loop for argument in arguments
+                        collect `(setf ,argument (get-input ,argument))))
+        `(setf ,(first arguments) (get-input ,(first arguments)))))
 
 (defun transpile-open-statement (&key filespec mode)
   (list 'setf filespec
@@ -211,6 +221,11 @@
   (when (eq (getf form :type) :procedure)
     (setf (symbol-function (getf (getf form :fields) :name))
           (lambda (&rest _) (declare (ignore _))))))
+
+(defun try-parse-number (string)
+  "Attempt to parse STRING as a number. If it fails, returns STRING."
+  (handler-case (parse-number string)
+    (error () string)))
 
 ;;; Errors
 

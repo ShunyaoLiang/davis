@@ -20,6 +20,8 @@ async function run_code() {
 	console.log(result);
 }
 
+var input_request_socket;
+
 $(document).ready(function() {
 	$('#user-input').keydown(function(event) {
 		// Get the character to insert.
@@ -46,4 +48,13 @@ $(document).ready(function() {
 		// Increment the caret.
 		$('#user-input').caret('pos', position + 1);
 	})
+
+	// Connect to the input thread.
+	input_request_socket = new WebSocket('ws://localhost:32848');
+	input_request_socket.onmessage = function (event) {
+		// Prompt the user for input.
+		let response = prompt(`Input required for variable ${event.data} :)`);
+		// Reply to the backend.
+		input_request_socket.send(response);
+	}
 })

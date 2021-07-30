@@ -79,10 +79,6 @@ The operator is automatically looked-up with FIND-SYMBOL if it exists."
           operand))
      ,@options))
 
-(defmacro movef (place new-value)
-  "Sets PLACE to be NEW-VALUE, returning the previous value of PLACE."
-  `(prog1 ,place (setf ,place ,new-value)))
-
 (defmacro set-insert (item place)
   "Inserts ITEM into PLACE if ITEM is not already present in PLACE."
   `(let ((item ,item)) ; Prevent duplicate evaluation.
@@ -205,7 +201,7 @@ The operator is automatically looked-up with FIND-SYMBOL if it exists."
   (:destructure (_ assignment)
    (list :type :let-statement :fields assignment)))
 
-(defrule get-statement (and (and (or "Get" "Read") whitespace) identifier-list)
+(defrule get-statement (and (and (or "Get" "Read" "Input" "input") whitespace) identifier-list)
   (:destructure (_ arguments)
    (list :type :get-statement :fields arguments)))
 
